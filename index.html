@@ -1,0 +1,72 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Beat the Timer!</title>
+<style>
+:root{--coral:#ff6b6b;--mint:#3ddc97;--sky:#4dabf7;--lemon:#ffd43b;--lilac:#b197fc}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:"Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;background:linear-gradient(135deg,#ffe3e3,#e6fcf5,#e7f5ff,#fff9db,#f3f0ff);color:#2b2b52;text-align:center;overflow-x:hidden}
+h1{margin:14px 0 0;font-size:clamp(32px,6vw,72px);letter-spacing:2px}
+h1 span:nth-child(5n+1){color:var(--coral)}h1 span:nth-child(5n+2){color:var(--sky)}h1 span:nth-child(5n+3){color:#f59f00}h1 span:nth-child(5n+4){color:var(--mint)}h1 span:nth-child(5n){color:var(--lilac)}
+.sub{font-size:clamp(16px,2.4vw,26px);margin:4px}
+#clock{font-size:clamp(110px,26vw,340px);font-weight:900;line-height:1;margin:10px auto;font-variant-numeric:tabular-nums;color:#2b2b52;text-shadow:6px 6px 0 var(--lemon)}
+#clock.low{color:var(--coral);animation:pulse .5s infinite alternate}
+@keyframes pulse{to{transform:scale(1.06)}}
+.row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:10px}
+button{font:inherit;border:0;border-radius:22px;padding:16px 26px;font-size:clamp(18px,2.6vw,30px);color:#fff;cursor:pointer;box-shadow:0 6px 0 rgba(0,0,0,.18);touch-action:manipulation}
+button:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.18)}
+.p{background:var(--sky)}.p.sel{background:var(--lilac);outline:4px solid #2b2b52}
+.go{background:var(--mint)}.pa{background:#f59f00}.rs{background:#868e96}
+.big{font-size:clamp(28px,5vw,60px);padding:22px 50px;border-radius:40px}
+#win{background:var(--coral)}#tw{background:var(--lilac)}
+input{font:inherit;font-size:26px;width:80px;text-align:center;border-radius:14px;border:3px solid var(--sky);padding:8px}
+.hide{display:none!important}
+#mute{position:fixed;top:10px;right:10px;background:#fff;color:#2b2b52;padding:10px 16px}
+.over{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:5}
+#sw{background:radial-gradient(circle,#fff9db,#3ddc97)}#tws{background:radial-gradient(circle,#f3f0ff,#b197fc)}
+.over h2{font-size:clamp(56px,12vw,170px);margin:0;color:#fff;text-shadow:5px 5px 0 #2b2b52;animation:bounce .6s infinite alternate}
+.over p{font-size:clamp(22px,3.5vw,44px);color:#2b2b52;margin:10px}
+.emoji{font-size:clamp(90px,18vw,230px);animation:spin 2s infinite ease-in-out}
+@keyframes bounce{to{transform:translateY(-18px) scale(1.04)}}@keyframes spin{50%{transform:rotate(-12deg) scale(1.12)}}
+#cf{position:fixed;inset:0;pointer-events:none;z-index:6}
+</style></head><body>
+<button id="mute">🔊 Sound</button>
+<h1 id="t"></h1><div class="sub">🧹 Clean up before the clock hits zero! 🧺</div>
+<div id="clock">1:00</div>
+<div class="row" id="pre"></div>
+<div class="row">Custom: <input id="cm" type="number" min="0" max="59" value="1">:<input id="cs" type="number" min="0" max="59" value="00"><button class="p" id="set">Set</button></div>
+<div class="row"><button class="go big" id="start">▶ Start</button><button class="pa" id="pause">⏸ Pause</button><button class="rs" id="reset">↺ Reset</button></div>
+<div class="row"><button class="big hide" id="win">🎉 Students win!</button><button class="hide" id="tw">👑 Teacher wins</button></div>
+<div class="over hide" id="sw"><div class="emoji">🏆</div><h2>STUDENTS WIN!</h2><p id="swt"></p><button class="go big again">Again!</button></div>
+<div class="over hide" id="tws"><div class="emoji">👑</div><h2>TEACHER WINS!</h2><p>Nice try, team — beat me next time! 😎</p><button class="go big again">Again!</button></div>
+<canvas id="cf"></canvas>
+<script>
+const $=id=>document.getElementById(id);
+$('t').innerHTML=[..."Beat the Timer!"].map(c=>'<span>'+(c==' '?'&nbsp;':c)+'</span>').join('');
+let dur=+localStorage.btt_dur||60,left=dur,run=false,last=0,raf,muted=localStorage.btt_mute==='1',lastTick=-1;
+const fmt=s=>{s=Math.ceil(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const P=[30,60,90,120,180,300];
+P.forEach(s=>{const b=document.createElement('button');b.className='p';b.textContent=fmt(s);b.dataset.s=s;b.onclick=()=>setDur(s);$('pre').appendChild(b)});
+function draw(){$('clock').textContent=fmt(left);$('clock').classList.toggle('low',run&&left<=10);
+document.querySelectorAll('#pre .p').forEach(b=>b.classList.toggle('sel',+b.dataset.s===dur));
+$('win').classList.toggle('hide',!run);$('tw').classList.toggle('hide',!run);$('mute').textContent=muted?'🔇 Muted':'🔊 Sound'}
+function setDur(s){if(s<1)return;stop();dur=s;left=s;localStorage.btt_dur=s;draw()}
+$('set').onclick=()=>setDur((+$('cm').value||0)*60+(+$('cs').value||0));
+let ac;function tone(f,t,d,type='square',v=.08){if(muted)return;ac=ac||new (window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain(),n=ac.currentTime+t;o.type=type;o.frequency.setValueAtTime(f,n);g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g).connect(ac.destination);o.start(n);o.stop(n+d);return o}
+function fanfare(){[523,659,784,1047,784,1047].forEach((f,i)=>tone(f,i*.13,.25,'triangle',.15))}
+function trombone(){[392,370,349].forEach((f,i)=>tone(f,i*.45,.45,'sawtooth',.07));const o=tone(330,1.35,1,'sawtooth',.07);if(o){o.frequency.linearRampToValueAtTime(300,ac.currentTime+2.3)}}
+function loop(ts){if(!run)return;left-=(ts-last)/1000;last=ts;
+ const c=Math.ceil(left);if(c<=10&&c>0&&c!==lastTick){lastTick=c;tone(c<=3?1000:800,0,.08,'sine',.1)}
+ if(left<=0){left=0;stop();end(false);return}draw();raf=requestAnimationFrame(loop)}
+function start(){if(run)return;if(left<=0)left=dur;if(ac)ac.resume();else tone(1,0,.01,'sine',.0001);run=true;last=performance.now();draw();raf=requestAnimationFrame(loop)}
+function stop(){run=false;cancelAnimationFrame(raf);draw()}
+$('start').onclick=start;$('pause').onclick=stop;$('reset').onclick=()=>{stop();left=dur;draw()};
+$('win').onclick=()=>{const l=left;stop();end(true,l)};$('tw').onclick=()=>{stop();end(false)};
+function end(st,l){if(st){$('swt').textContent='Beat the clock with '+fmt(l)+' to spare! 🌟';$('sw').classList.remove('hide');fanfare();confetti()}else{$('tws').classList.remove('hide');trombone()}}
+document.querySelectorAll('.again').forEach(b=>b.onclick=()=>{$('sw').classList.add('hide');$('tws').classList.add('hide');left=dur;lastTick=-1;draw()});
+$('mute').onclick=()=>{muted=!muted;localStorage.btt_mute=muted?'1':'0';draw()};
+function confetti(){const c=$('cf'),x=c.getContext('2d');c.width=innerWidth;c.height=innerHeight;const col=['#ff6b6b','#3ddc97','#4dabf7','#ffd43b','#b197fc'];
+ let ps=Array.from({length:220},()=>({x:Math.random()*c.width,y:-Math.random()*c.height,v:2+Math.random()*5,s:6+Math.random()*10,r:Math.random()*6,c:col[Math.random()*5|0]}));let f=0;
+ (function a(){x.clearRect(0,0,c.width,c.height);ps.forEach(p=>{p.y+=p.v;p.r+=.1;x.fillStyle=p.c;x.save();x.translate(p.x,p.y);x.rotate(p.r);x.fillRect(-p.s/2,-p.s/4,p.s,p.s/2);x.restore()});if(++f<300)requestAnimationFrame(a);else x.clearRect(0,0,c.width,c.height)})()}
+draw();
+</script></body></html>
